@@ -1,0 +1,61 @@
+name: Build iPhone app (IPA)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ios/**"
+      - ".github/workflows/build-ios.yml"
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build (unsigned)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project IPhoneMirror.xcodeproj \
+            -target IPhoneMirror \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | tee build.log | grep -E "error:|warning: .*deprecated|\*\* BUILD" || true
+          test -d build/Release-iphoneos/IPhoneMirror.app
+
+      - name: Package IPA
+        working-directory: ios
+        run: |
+          APP=build/Release-iphoneos/IPhoneMirror.app
+          test -d "$APP/PlugIns/MirrorBroadcast.appex" || (echo "Broadcast extension missing" && exit 1)
+          rm -rf Payload && mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry iPhoneMirror.ipa Payload
+          ls -la iPhoneMirror.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: iPhoneMirror-ipa
+          path: ios/iPhoneMirror.ipa
+          if-no-files-found: error
+
+      - name: Upload build log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ios/build.log

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "ios/**"
+      - "iphone-mirror/ios/**"
       - ".github/workflows/build-ios.yml"
 
 jobs:
@@ -18,11 +18,11 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode project
-        working-directory: ios
+        working-directory: iphone-mirror/ios
         run: xcodegen generate
 
       - name: Build (unsigned)
-        working-directory: ios
+        working-directory: iphone-mirror/ios
         run: |
           set -o pipefail
           xcodebuild \
@@ -37,7 +37,7 @@ jobs:
           test -d build/Release-iphoneos/IPhoneMirror.app
 
       - name: Package IPA
-        working-directory: ios
+        working-directory: iphone-mirror/ios
         run: |
           APP=build/Release-iphoneos/IPhoneMirror.app
           test -d "$APP/PlugIns/MirrorBroadcast.appex" || (echo "Broadcast extension missing" && exit 1)
@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: iPhoneMirror-ipa
-          path: ios/iPhoneMirror.ipa
+          path: iphone-mirror/ios/iPhoneMirror.ipa
           if-no-files-found: error
 
       - name: Upload build log (on failure)
@@ -58,4 +58,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-log
-          path: ios/build.log
+          path: iphone-mirror/ios/build.log
